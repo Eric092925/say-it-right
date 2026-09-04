@@ -26,7 +26,7 @@ export function getAIConfig(): AIConfig {
   return {
     apiUrl: (process.env.AI_API_URL || process.env.NEXT_PUBLIC_AI_API_URL)?.trim(),
     apiKey: rawKey?.trim(),
-    model: process.env.AI_MODEL?.trim() || "gemini-1.5-flash",
+    model: process.env.AI_MODEL?.trim() || "gemini-2.5-flash",
   };
 }
 
@@ -91,7 +91,7 @@ export async function processMessageAI(request: MessageRequest): Promise<Message
     };
   }
 
-  const prompt = `You are an elite corporate communication strategist, executive speechwriter, and senior English editor (matching the exact conversational excellence of Gemini Advanced).
+  const prompt = `You are an elite corporate communication strategist, executive speechwriter, and senior English editor (matching the conversational caliber of Gemini Advanced).
 
 Task: Polish and rewrite the user's message into 3 DISTINCT, professional, and impactful variations tailored to the "${tone}" tone.
 
@@ -155,7 +155,7 @@ Respond ONLY with a valid JSON object matching this schema (no markdown fences, 
     console.error(`[Say It Right AI] AI call failed:`, lastError);
   }
 
-  // Fallback to local tone engine if external AI fails or is unreachable
+  // Fallback to local tone engine if external AI fails, times out, or hits rate limit
   return {
     type: "message",
     versions: getFallbackMessageVersions(input, tone),
@@ -163,9 +163,6 @@ Respond ONLY with a valid JSON object matching this schema (no markdown fences, 
     aiError: lastError || undefined,
   };
 }
-
-// Cached working model in server memory to avoid retries
-let cachedWorkingModel = "gemini-flash-latest";
 
 interface AIProviderResponse {
   text: string;
@@ -187,55 +184,28 @@ async function callAIProvider(
     url.includes("generativelanguage.googleapis.com") ||
     (!url && apiKey && (apiKey.startsWith("AIza") || apiKey.startsWith("AQ.") || !apiKey.startsWith("sk-")))
   ) {
-    // Fast path: Try the known working model directly first
-    const primaryModel = config.model || cachedWorkingModel || "gemini-flash-latest";
-    const primaryEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${primaryModel}:generateContent?key=${apiKey}`;
-
-    try {
-      const res = await fetch(primaryEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature,
-            responseMimeType: "application/json",
-          },
-        }),
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          cachedWorkingModel = primaryModel;
-          return { text, modelUsed: primaryModel };
-        }
-      }
-    } catch {
-      // If direct call fails, proceed to fallback list below
-    }
-
-    // Fallback list of models if primary model is unavailable
-    const fallbackModels = [
-      "gemini-flash-latest",
-      "gemini-2.5-flash",
-      "gemini-pro-latest",
-      "gemini-1.5-flash",
-      "gemini-2.0-flash",
-    ];
+    // We only try the 2 proven active models: gemini-2.5-flash and gemini-flash-latest
+    const modelsToTry = Array.from(
+      new Set([
+        config.model || "gemini-2.5-flash",
+        "gemini-flash-latest",
+        "gemini-2.5-flash-lite",
+      ])
+    );
 
     let lastGeminiErr = "";
 
-    for (const model of fallbackModels) {
-      if (model === primaryModel) continue; // already tried
-
+    for (const model of modelsToTry) {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000); // 4-second hard timeout
 
       try {
         const res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: {
@@ -245,22 +215,38 @@ async function callAIProvider(
           }),
         });
 
+        clearTimeout(timeoutId);
+
         if (res.ok) {
           const json = await res.json();
           const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
-            cachedWorkingModel = model;
             return { text, modelUsed: model };
           }
-        } else {
-          lastGeminiErr = await res.text();
         }
+
+        // If Google returns 429 (rate limit exceeded), abort immediately instead of retrying
+        if (res.status === 429) {
+          lastGeminiErr = "Google Gemini rate limit reached. Please wait a moment.";
+          console.warn(`[Say It Right AI] ${lastGeminiErr}`);
+          throw new Error(lastGeminiErr);
+        }
+
+        lastGeminiErr = await res.text();
+        console.warn(`[Say It Right AI] Model ${model} returned ${res.status}: ${lastGeminiErr.slice(0, 120)}`);
       } catch (err: any) {
-        lastGeminiErr = err.message || String(err);
+        clearTimeout(timeoutId);
+        if (err.name === "AbortError") {
+          lastGeminiErr = "Gemini request timed out (4s limit).";
+        } else if (err.message?.includes("rate limit")) {
+          throw err;
+        } else {
+          lastGeminiErr = err.message || String(err);
+        }
       }
     }
 
-    throw new Error(`Google Gemini failed: ${lastGeminiErr}`);
+    throw new Error(lastGeminiErr || "Unable to reach Google Gemini.");
   }
 
   // 2. OpenAI / Compatible Endpoint Handling
@@ -272,34 +258,45 @@ async function callAIProvider(
     const endpoint = url || "https://api.openai.com/v1/chat/completions";
     const model = config.model || "gpt-4o-mini";
 
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "system",
-            content: "You are a world-class English communication assistant that outputs only valid JSON.",
-          },
-          { role: "user", content: prompt },
-        ],
-        temperature,
-        response_format: { type: "json_object" },
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`OpenAI API error ${res.status}: ${errText}`);
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: "system",
+              content: "You are a world-class English communication assistant that outputs only valid JSON.",
+            },
+            { role: "user", content: prompt },
+          ],
+          temperature,
+          response_format: { type: "json_object" },
+        }),
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`OpenAI API error ${res.status}: ${errText}`);
+      }
+
+      const json = await res.json();
+      const text = json?.choices?.[0]?.message?.content || null;
+      return text ? { text, modelUsed: model } : null;
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      throw err;
     }
-
-    const json = await res.json();
-    const text = json?.choices?.[0]?.message?.content || null;
-    return text ? { text, modelUsed: model } : null;
   }
 
   return null;
