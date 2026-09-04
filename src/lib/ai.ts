@@ -182,59 +182,93 @@ async function callAIProvider(
   // 1. Google Gemini Endpoint Handling
   if (
     url.includes("generativelanguage.googleapis.com") ||
-    (!url && apiKey && (apiKey.startsWith("AIza") || !apiKey.startsWith("sk-")))
+    (!url && apiKey && (apiKey.startsWith("AIza") || apiKey.startsWith("AQ.") || !apiKey.startsWith("sk-")))
   ) {
-    const modelsToTry = config.model
-      ? [config.model, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
-      : ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+    // Dynamic Model Discovery from Google API
+    let discoveredModels: string[] = [];
+    try {
+      const listRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+      );
+      if (listRes.ok) {
+        const listJson = await listRes.json();
+        if (Array.isArray(listJson.models)) {
+          discoveredModels = listJson.models
+            .filter((m: any) =>
+              m.supportedGenerationMethods?.includes("generateContent")
+            )
+            .map((m: any) => m.name.replace("models/", ""));
+        }
+      }
+    } catch {
+      // Ignore discovery error and use base models
+    }
 
-    const uniqueModels = Array.from(new Set(modelsToTry));
+    const baseModels = [
+      "gemini-1.5-flash",
+      "gemini-1.5-flash-latest",
+      "gemini-2.0-flash",
+      "gemini-2.0-flash-exp",
+      "gemini-1.5-pro",
+      "gemini-pro",
+    ];
+
+    const modelsToTry = Array.from(
+      new Set([
+        ...(config.model ? [config.model] : []),
+        ...discoveredModels,
+        ...baseModels,
+      ])
+    );
+
     let lastGeminiErr = "";
 
-    for (const model of uniqueModels) {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    for (const model of modelsToTry) {
+      // Try v1beta then v1
+      for (const apiVer of ["v1beta", "v1"]) {
+        const endpoint = `https://generativelanguage.googleapis.com/${apiVer}/models/${model}:generateContent?key=${apiKey}`;
 
-      // Try with responseMimeType first, then retry without if needed
-      for (const withJsonMime of [true, false]) {
-        try {
-          const genConfig: any = { temperature };
-          if (withJsonMime) {
-            genConfig.responseMimeType = "application/json";
-          }
-
-          const res = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: "user",
-                  parts: [{ text: prompt }],
-                },
-              ],
-              generationConfig: genConfig,
-            }),
-          });
-
-          if (res.ok) {
-            const json = await res.json();
-            const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              return { text, modelUsed: model };
+        for (const withJsonMime of [true, false]) {
+          try {
+            const genConfig: any = { temperature };
+            if (withJsonMime) {
+              genConfig.responseMimeType = "application/json";
             }
-          } else {
-            lastGeminiErr = await res.text();
-            console.warn(
-              `[Say It Right AI] Gemini model ${model} (jsonMime=${withJsonMime}) returned ${res.status}: ${lastGeminiErr.slice(0, 180)}`
-            );
+
+            const res = await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    role: "user",
+                    parts: [{ text: prompt }],
+                  },
+                ],
+                generationConfig: genConfig,
+              }),
+            });
+
+            if (res.ok) {
+              const json = await res.json();
+              const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) {
+                return { text, modelUsed: `${model} (${apiVer})` };
+              }
+            } else {
+              lastGeminiErr = await res.text();
+              console.warn(
+                `[Say It Right AI] Gemini ${model} [${apiVer}] (jsonMime=${withJsonMime}) error ${res.status}: ${lastGeminiErr.slice(0, 150)}`
+              );
+            }
+          } catch (err: any) {
+            lastGeminiErr = err.message || String(err);
           }
-        } catch (err: any) {
-          lastGeminiErr = err.message || String(err);
         }
       }
     }
 
-    throw new Error(`Google Gemini failed on all models: ${lastGeminiErr}`);
+    throw new Error(`Google Gemini failed: ${lastGeminiErr}`);
   }
 
   // 2. OpenAI / Compatible Endpoint Handling
