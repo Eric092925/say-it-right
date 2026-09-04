@@ -164,6 +164,9 @@ Respond ONLY with a valid JSON object matching this schema (no markdown fences, 
   };
 }
 
+// Cached working model in server memory to avoid retries
+let cachedWorkingModel = "gemini-flash-latest";
+
 interface AIProviderResponse {
   text: string;
   modelUsed: string;
@@ -184,95 +187,76 @@ async function callAIProvider(
     url.includes("generativelanguage.googleapis.com") ||
     (!url && apiKey && (apiKey.startsWith("AIza") || apiKey.startsWith("AQ.") || !apiKey.startsWith("sk-")))
   ) {
-    // Dynamic Model Discovery from Google API
-    let discoveredModels: string[] = [];
+    // Fast path: Try the known working model directly first
+    const primaryModel = config.model || cachedWorkingModel || "gemini-flash-latest";
+    const primaryEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${primaryModel}:generateContent?key=${apiKey}`;
+
     try {
-      const listRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-      );
-      if (listRes.ok) {
-        const listJson = await listRes.json();
-        if (Array.isArray(listJson.models)) {
-          discoveredModels = listJson.models
-            .filter((m: any) =>
-              m.supportedGenerationMethods?.includes("generateContent")
-            )
-            .map((m: any) => m.name.replace("models/", ""));
+      const res = await fetch(primaryEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature,
+            responseMimeType: "application/json",
+          },
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          cachedWorkingModel = primaryModel;
+          return { text, modelUsed: primaryModel };
         }
       }
     } catch {
-      // Ignore discovery error and use base models
+      // If direct call fails, proceed to fallback list below
     }
 
-    // Prioritize flagship Gemini models first; Gemma is only a last resort
-    const priorityGemini = [
-      "gemini-2.0-flash",
+    // Fallback list of models if primary model is unavailable
+    const fallbackModels = [
+      "gemini-flash-latest",
+      "gemini-2.5-flash",
+      "gemini-pro-latest",
       "gemini-1.5-flash",
-      "gemini-1.5-flash-latest",
-      "gemini-1.5-pro",
-      "gemini-pro",
+      "gemini-2.0-flash",
     ];
-
-    const geminiDiscovered = discoveredModels.filter((m) => m.startsWith("gemini-"));
-    const otherDiscovered = discoveredModels.filter(
-      (m) => !m.startsWith("gemini-") && !m.startsWith("gemma-")
-    );
-    const gemmaModels = discoveredModels.filter((m) => m.startsWith("gemma-"));
-
-    const modelsToTry = Array.from(
-      new Set([
-        ...(config.model ? [config.model] : []),
-        ...priorityGemini,
-        ...geminiDiscovered,
-        ...otherDiscovered,
-        ...gemmaModels,
-      ])
-    );
 
     let lastGeminiErr = "";
 
-    for (const model of modelsToTry) {
-      // Try v1beta then v1
-      for (const apiVer of ["v1beta", "v1"]) {
-        const endpoint = `https://generativelanguage.googleapis.com/${apiVer}/models/${model}:generateContent?key=${apiKey}`;
+    for (const model of fallbackModels) {
+      if (model === primaryModel) continue; // already tried
 
-        for (const withJsonMime of [true, false]) {
-          try {
-            const genConfig: any = { temperature };
-            if (withJsonMime) {
-              genConfig.responseMimeType = "application/json";
-            }
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-            const res = await fetch(endpoint, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [
-                  {
-                    role: "user",
-                    parts: [{ text: prompt }],
-                  },
-                ],
-                generationConfig: genConfig,
-              }),
-            });
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature,
+              responseMimeType: "application/json",
+            },
+          }),
+        });
 
-            if (res.ok) {
-              const json = await res.json();
-              const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (text) {
-                return { text, modelUsed: `${model} (${apiVer})` };
-              }
-            } else {
-              lastGeminiErr = await res.text();
-              console.warn(
-                `[Say It Right AI] Gemini ${model} [${apiVer}] (jsonMime=${withJsonMime}) error ${res.status}: ${lastGeminiErr.slice(0, 150)}`
-              );
-            }
-          } catch (err: any) {
-            lastGeminiErr = err.message || String(err);
+        if (res.ok) {
+          const json = await res.json();
+          const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            cachedWorkingModel = model;
+            return { text, modelUsed: model };
           }
+        } else {
+          lastGeminiErr = await res.text();
         }
+      } catch (err: any) {
+        lastGeminiErr = err.message || String(err);
       }
     }
 
