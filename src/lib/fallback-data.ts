@@ -686,46 +686,121 @@ export function getFallbackMessageVersions(input: string, tone: ToneOption): str
     }
   }
 
-  // General request or inquiry
-  const stripped = clean.toLowerCase().replace(/^(can you please|could you please|can you|could you|please|i want you to|would you mind)\s+/i, "");
-  const capitalizedStripped = stripped.charAt(0).toUpperCase() + stripped.slice(1);
+  // Detect if input is a proposal / strategic business idea vs a direct task request
+  const isProposalOrStatement =
+    /\b(think|suggest|recommend|propose|believe|consider|evaluate|move|relocate|transition|shift|revenue|cost|margin|budget|strategy|plan|expand|reduce|outsource)\b/i.test(lower) ||
+    !/^(can|could|would|please|do you|may|will|are you|is it)/i.test(lower);
 
+  let cleanBody = text
+    .replace(/^i think\s+(that\s+)?/i, "")
+    .replace(/^we should\s+/i, "")
+    .replace(/^maybe we can\s+/i, "")
+    .replace(/^can you please\s+|^could you please\s+|^please\s+/i, "")
+    .trim();
+
+  // Normalize auxiliary passive phrases for natural grammatical flow (e.g. "operations can be moved to Asia" -> "relocating operations to Asia")
+  let actionClause = cleanBody
+    .replace(/\bcan be moved to\b/i, "relocating")
+    .replace(/\bcan be relocated to\b/i, "relocating")
+    .replace(/\bshould be moved to\b/i, "relocating")
+    .replace(/\bshould be relocated to\b/i, "relocating")
+    .replace(/\bcould be moved to\b/i, "relocating")
+    .replace(/\bcan be shifted to\b/i, "shifting")
+    .replace(/\bcan be transferred to\b/i, "transferring")
+    .replace(/\bcan be outsourced to\b/i, "outsourcing");
+
+  // Check if revenue/cost rationale is mentioned
+  const hasRevenueOrCostContext = /\b(revenue|margin|cost|budget|expense|financial)\b/i.test(lower);
+
+  // If actionClause became "operations, logistics and finance relocating Asia in view of low revenue", re-order for natural flow
+  if (/\brelocating\b/i.test(actionClause)) {
+    // e.g. "operations, logistics and finance relocating Asia" -> "relocating operations, logistics, and finance to Asia"
+    actionClause = actionClause.replace(/(.+?)\s+relocating\s+(to\s+)?(.+?)(\s+in view of.+|\s+due to.+)?$/i, "relocating $1 to $3");
+  }
+
+  // Strip trailing rationale if we are inserting rationale at the front
+  const coreActionWithoutRationale = actionClause
+    .replace(/\s+in view of\s+.*$/i, "")
+    .replace(/\s+due to\s+.*$/i, "")
+    .replace(/\s+because of\s+.*$/i, "")
+    .trim();
+
+  const businessRationalePrefix = hasRevenueOrCostContext
+    ? "Given current revenue constraints and margin considerations"
+    : "In light of our current operational priorities";
+
+  if (isProposalOrStatement && !isQuestionOrRequest) {
+    switch (tone) {
+      case "Professional":
+        return [
+          `${businessRationalePrefix}, we should evaluate ${coreActionWithoutRationale} to optimize costs and enhance operational efficiency.`,
+          `To support our financial performance and streamline operations, I recommend assessing the feasibility of ${coreActionWithoutRationale}.`,
+          `As a strategic initiative to manage expenses, we should consider ${coreActionWithoutRationale} to establish a more competitive operating model.`,
+        ];
+      case "Friendly":
+        return [
+          `Hi team! In light of our current numbers, I think it's definitely worth exploring ${coreActionWithoutRationale} so we can optimize costs and work more efficiently.`,
+          `Hey everyone! Given where our revenue is at, what do you think about ${coreActionWithoutRationale}? It could be a great way to reduce overhead.`,
+          `Hi all! I wanted to put forward an idea: exploring ${coreActionWithoutRationale} might give us the cost advantage and flexibility we need right now.`,
+        ];
+      case "Polite":
+        return [
+          `I would like to respectfully suggest that we evaluate ${coreActionWithoutRationale}, as this could help optimize our financial and operational efficiency.`,
+          `Thank you for your consideration; I recommend examining the feasibility of ${coreActionWithoutRationale} to support our broader organizational goals.`,
+          `Would leadership be open to reviewing ${coreActionWithoutRationale} in light of our current revenue objectives? Thank you for your guidance.`,
+        ];
+      case "Confident":
+        return [
+          `We should proceed with evaluating ${coreActionWithoutRationale} immediately to address revenue constraints and protect operating margins.`,
+          `Implementing ${coreActionWithoutRationale} is a critical strategic lever to drive efficiency and optimize our cost structure.`,
+          `I recommend moving forward with ${coreActionWithoutRationale} to ensure a sustainable and agile operational foundation.`,
+        ];
+      case "Casual":
+        return [
+          `Given the current revenue squeeze, looking into ${coreActionWithoutRationale} could be a solid way to trim overhead.`,
+          `Quick thought: ${coreActionWithoutRationale} could really help take the pressure off our margins right now.`,
+          `Makes sense to consider ${coreActionWithoutRationale} given our current numbers — could save us a lot in operating costs.`,
+        ];
+    }
+  }
+
+  // Direct task request or inquiry
   switch (tone) {
     case "Professional":
       return [
-        `Could you please assist with ${stripped} at your earliest convenience? Thank you for your time and guidance.`,
-        `I would appreciate it if you could review ${stripped} when you have an opportunity.`,
-        `Kindly provide an update regarding ${stripped} so we may proceed with the next steps.`,
+        `Could you please assist with ${cleanBody} at your earliest convenience? Thank you for your time and guidance.`,
+        `I would appreciate it if you could review ${cleanBody} when you have an opportunity.`,
+        `Kindly provide an update regarding ${cleanBody} so we may proceed with the next steps.`,
       ];
     case "Friendly":
       return [
-        `Hey there! Hope you're doing well. Whenever you get a chance, could you help with ${stripped}? Thanks so much!`,
-        `Hi! Just checking in to see if you might have a moment to look into ${stripped}? Really appreciate it!`,
-        `Hope you're having a great week! Would love your help with ${stripped} whenever you're free.`,
+        `Hey there! Whenever you get a chance, could you help with ${cleanBody}? Thanks so much!`,
+        `Hi! Just checking in to see if you might have a moment to look into ${cleanBody}? Really appreciate it!`,
+        `Hope you're having a great week! Would love your help with ${cleanBody} whenever you're free.`,
       ];
     case "Polite":
       return [
-        `Would it be possible for you to kindly assist with ${stripped}? Thank you very much for your time and consideration.`,
-        `I would be deeply grateful if you could look into ${stripped} when your schedule permits.`,
-        `Could you please be so kind as to assist with ${stripped}? Thank you kindly.`,
+        `Would it be possible for you to kindly assist with ${cleanBody}? Thank you very much for your time and consideration.`,
+        `I would be deeply grateful if you could look into ${cleanBody} when your schedule permits.`,
+        `Could you please be so kind as to assist with ${cleanBody}? Thank you kindly.`,
       ];
     case "Confident":
       return [
-        `Please finalize ${stripped} so we can move forward and meet our upcoming milestones.`,
-        `Let's coordinate on ${stripped} today to ensure our schedule remains on track.`,
-        `I need ${stripped} completed to proceed with our next phase. Please provide an update by end of day.`,
+        `Please finalize ${cleanBody} so we can move forward and meet our upcoming milestones.`,
+        `Let's coordinate on ${cleanBody} today to ensure our schedule remains on track.`,
+        `I need ${cleanBody} completed to proceed with our next phase. Please provide an update by end of day.`,
       ];
     case "Casual":
       return [
-        `Hey, could you help me out with ${stripped} whenever you get a second? Cheers!`,
-        `Quick question — any chance you could take a look at ${stripped}? Thanks!`,
-        `Whenever you're free, let me know your thoughts on ${stripped}. Appreciate it!`,
+        `Hey, could you help me out with ${cleanBody} whenever you get a second? Cheers!`,
+        `Quick question — any chance you could take a look at ${cleanBody}? Thanks!`,
+        `Whenever you're free, let me know your thoughts on ${cleanBody}. Appreciate it!`,
       ];
     default:
       return [
-        `Could you please review ${stripped}?`,
-        `I would appreciate your assistance with ${stripped}.`,
-        `Kindly let me know when you have an opportunity to look at ${stripped}.`,
+        `Could you please review ${cleanBody}?`,
+        `I would appreciate your assistance with ${cleanBody}.`,
+        `Kindly let me know when you have an opportunity to look at ${cleanBody}.`,
       ];
   }
 }

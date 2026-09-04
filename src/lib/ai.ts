@@ -194,20 +194,26 @@ async function callAIProvider(
     url.includes("generativelanguage.googleapis.com") ||
     (!url && apiKey && (apiKey.startsWith("AIza") || apiKey.startsWith("AQ.") || !apiKey.startsWith("sk-")))
   ) {
-    // Primary model is the proven gemini-flash-latest
+    // Primary models in order of priority:
+    // 1. gemini-flash-latest: Proven, ultra-fast Gemini Flash model
+    // 2. gemini-flash-lite-latest: Lightweight, fast, has separate quota pool
+    // 3. gemini-2.5-flash: High-performance reasoning fallback
+    // 4. gemini-2.5-flash-lite: Lite fallback model
     const modelsToTry = [
       "gemini-flash-latest",
-      config.model || "gemini-2.5-flash",
+      "gemini-flash-lite-latest",
+      config.model && config.model !== "gemini-flash-latest" ? config.model : "gemini-2.5-flash",
       "gemini-2.5-flash-lite",
     ];
 
     let lastGeminiErr = "";
 
-    for (const model of modelsToTry) {
+    for (let i = 0; i < modelsToTry.length; i++) {
+      const model = modelsToTry[i];
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second generous timeout for deep generation
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12-second generous timeout per attempt
 
       try {
         const res = await fetch(endpoint, {
@@ -233,11 +239,14 @@ async function callAIProvider(
           }
         }
 
-        // If Google returns 429 (rate limit exceeded), abort immediately instead of retrying
+        // If Google returns 429 (rate limit exceeded), fail over to next model with short delay
         if (res.status === 429) {
-          lastGeminiErr = "Google Gemini rate limit reached. Please wait a moment.";
-          console.warn(`[Say It Right AI] ${lastGeminiErr}`);
-          throw new Error(lastGeminiErr);
+          console.warn(`[Say It Right AI] Model ${model} hit 429 rate limit. Attempting quota failover...`);
+          lastGeminiErr = `Google Gemini rate limit reached on ${model}.`;
+          if (i < modelsToTry.length - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            continue;
+          }
         }
 
         lastGeminiErr = await res.text();
@@ -245,11 +254,11 @@ async function callAIProvider(
       } catch (err: any) {
         clearTimeout(timeoutId);
         if (err.name === "AbortError") {
-          lastGeminiErr = "Gemini request timed out (15s limit).";
-        } else if (err.message?.includes("rate limit")) {
-          throw err;
+          lastGeminiErr = `Gemini model ${model} timed out (12s limit).`;
+          console.warn(`[Say It Right AI] ${lastGeminiErr}`);
         } else {
           lastGeminiErr = err.message || String(err);
+          console.warn(`[Say It Right AI] Model ${model} error:`, lastGeminiErr);
         }
       }
     }

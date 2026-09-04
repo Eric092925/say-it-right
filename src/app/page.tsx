@@ -119,6 +119,8 @@ export default function HomePage() {
           const updatedVersions = [...existingVersions, newVersionText];
           setMessageResult({
             ...data.data,
+            source: messageResult.source === "ai" || data.data.source === "ai" ? "ai" : "fallback",
+            model: data.data.model || messageResult.model,
             versions: updatedVersions,
           });
           setSelectedVersion(updatedVersions.length - 1);
