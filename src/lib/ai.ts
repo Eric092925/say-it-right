@@ -18,13 +18,15 @@ export interface AIConfig {
 }
 
 export function getAIConfig(): AIConfig {
+  const rawKey =
+    process.env.AI_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.OPENAI_API_KEY;
+
   return {
-    apiUrl: process.env.AI_API_URL || process.env.NEXT_PUBLIC_AI_API_URL,
-    apiKey:
-      process.env.AI_API_KEY ||
-      process.env.GEMINI_API_KEY ||
-      process.env.OPENAI_API_KEY,
-    model: process.env.AI_MODEL || "gemini-1.5-flash",
+    apiUrl: (process.env.AI_API_URL || process.env.NEXT_PUBLIC_AI_API_URL)?.trim(),
+    apiKey: rawKey?.trim(),
+    model: process.env.AI_MODEL?.trim() || "gemini-1.5-flash",
   };
 }
 
@@ -89,28 +91,31 @@ export async function processMessageAI(request: MessageRequest): Promise<Message
     };
   }
 
-  const prompt = `You are an elite English communication coach and writing specialist (delivering the conversational caliber of Gemini Advanced).
+  const prompt = `You are an elite corporate communication strategist, executive speechwriter, and senior English editor (matching the exact conversational excellence of Gemini Advanced).
 
-Task: Polish and rewrite the user's message into 3 EXCEPTIONAL, natural, and expressive variations tailored specifically to the "${tone}" tone.
+Task: Polish and rewrite the user's message into 3 DISTINCT, professional, and impactful variations tailored to the "${tone}" tone.
 
-Tone Standards:
-- Professional: Articulate, polished, business-ready, diplomatic, and complete.
-- Friendly: Warm, engaging, approachable, and encouraging while staying clear.
-- Polite: Courteous, gracious, considerate, and deferential with respectful phrasing.
-- Confident: Direct, decisive, impactful, and clear with strong active voice.
+Tone & Quality Standards:
+- Business & Professional:
+  - Lead with the strategic or operational rationale (e.g., "Given current revenue constraints...", "To optimize operational efficiency and reduce costs...").
+  - Transform tentative phrases ("I think", "maybe", "in view of") into decisive, articulate, and well-reasoned proposals ("We should evaluate relocating...", "I recommend assessing the feasibility of...").
+  - Use high-impact executive vocabulary (e.g., "streamline operations", "optimize cost structures", "mitigate risks", "align priorities").
+- Friendly: Warm, engaging, collaborative, and approachable while maintaining professional credibility.
+- Polite: Courteous, considerate, diplomatic, and gracious with respectful phrasing.
+- Confident: Direct, authoritative, decisive, and clear with strong active voice.
 - Casual: Natural, relaxed, conversational, and effortless.
 
 Crucial Guidelines:
-1. Sound completely human, authentic, and fluent. Never sound like a generic or rigid template.
-2. Fix all typos, grammar mistakes, awkward phrasing, and run-on sentences.
-3. If the input is a short fragment or rough thought (e.g., "tell boss sick today"), expand it into a complete, well-formed message suitable for sending.
-4. If the input is an email or request, retain all specific facts, names, and intent.
+1. Sound completely human, authentic, and eloquent. Never sound like a generic or rigid template.
+2. Fix all typos, grammar mistakes, awkward phrasing, and informal colloquialisms (unless tone is casual).
+3. If the input is a business proposal or statement, elevate it into a polished, executive-ready message.
+4. Retain all core facts, names, numbers, and original intent without losing meaning.
 5. Provide 3 distinctly different stylistic options so the user has meaningful choice:
-   - Version 1: Balanced & polished (ideal default).
-   - Version 2: Nuanced / conversational.
-   - Version 3: More concise & direct.
+   - Version 1: Executive & Strategic (direct, rationale-first, authoritative).
+   - Version 2: Collaborative & Constructive (diplomatic, discussion-oriented).
+   - Version 3: Crisp & Concise (brief, high-impact, to the point).
 
-User Message:
+User Original Draft:
 """
 ${input}
 """
@@ -179,9 +184,8 @@ async function callAIProvider(
     url.includes("generativelanguage.googleapis.com") ||
     (!url && apiKey && (apiKey.startsWith("AIza") || !apiKey.startsWith("sk-")))
   ) {
-    // List of models to try in order of preference
     const modelsToTry = config.model
-      ? [config.model, "gemini-1.5-flash", "gemini-2.0-flash"]
+      ? [config.model, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
       : ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
 
     const uniqueModels = Array.from(new Set(modelsToTry));
@@ -190,36 +194,43 @@ async function callAIProvider(
     for (const model of uniqueModels) {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-      try {
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: prompt }],
-              },
-            ],
-            generationConfig: {
-              temperature,
-              responseMimeType: "application/json",
-            },
-          }),
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            return { text, modelUsed: model };
+      // Try with responseMimeType first, then retry without if needed
+      for (const withJsonMime of [true, false]) {
+        try {
+          const genConfig: any = { temperature };
+          if (withJsonMime) {
+            genConfig.responseMimeType = "application/json";
           }
-        } else {
-          lastGeminiErr = await res.text();
-          console.warn(`[Say It Right AI] Gemini model ${model} failed (${res.status}): ${lastGeminiErr.slice(0, 150)}`);
+
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: "user",
+                  parts: [{ text: prompt }],
+                },
+              ],
+              generationConfig: genConfig,
+            }),
+          });
+
+          if (res.ok) {
+            const json = await res.json();
+            const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              return { text, modelUsed: model };
+            }
+          } else {
+            lastGeminiErr = await res.text();
+            console.warn(
+              `[Say It Right AI] Gemini model ${model} (jsonMime=${withJsonMime}) returned ${res.status}: ${lastGeminiErr.slice(0, 180)}`
+            );
+          }
+        } catch (err: any) {
+          lastGeminiErr = err.message || String(err);
         }
-      } catch (err: any) {
-        lastGeminiErr = err.message || String(err);
       }
     }
 
