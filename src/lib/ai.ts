@@ -76,7 +76,7 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no prea
 }
 
 export async function processMessageAI(request: MessageRequest): Promise<MessageResult> {
-  const { input, tone } = request;
+  const { input, tone, versionNumber = 1, previousVersions } = request;
   const config = getAIConfig();
 
   if (!config.apiKey && !config.apiUrl) {
@@ -84,16 +84,31 @@ export async function processMessageAI(request: MessageRequest): Promise<Message
       `[Say It Right AI] No AI_API_KEY configured. Using local tone engine for message.`
     );
     const versions = getFallbackMessageVersions(input, tone);
+    const selected = versions[Math.min(versionNumber - 1, versions.length - 1)] || versions[0];
     return {
       type: "message",
-      versions,
+      versions: [selected],
       source: "fallback",
     };
   }
 
+  const styleHints: Record<number, string> = {
+    1: "Style Angle: Strategic & Executive (clear, authoritative, rationale-first, business-ready default).",
+    2: "Style Angle: Collaborative & Diplomatic (constructive, partnership-oriented, respectful).",
+    3: "Style Angle: Direct & Action-Oriented (concise, high-impact, to the point).",
+  };
+
+  const currentStyle = styleHints[versionNumber] || styleHints[1];
+  const previousExclusions =
+    previousVersions && previousVersions.length > 0
+      ? `\nImportant requirement: Do NOT repeat the phrasing or structure of these previous versions:\n${previousVersions.map((v, i) => `- "${v}"`).join("\n")}\nProvide a fresh, distinct perspective.`
+      : "";
+
   const prompt = `You are an elite corporate communication strategist, executive speechwriter, and senior English editor (matching the conversational caliber of Gemini Advanced).
 
-Task: Polish and rewrite the user's message into 3 DISTINCT, professional, and impactful variations tailored to the "${tone}" tone.
+Task: Polish and rewrite the user's message into ONE exceptional, natural, and impactful version tailored specifically to the "${tone}" tone.
+${currentStyle}
+${previousExclusions}
 
 Tone & Quality Standards:
 - Business & Professional:
@@ -110,10 +125,6 @@ Crucial Guidelines:
 2. Fix all typos, grammar mistakes, awkward phrasing, and informal colloquialisms (unless tone is casual).
 3. If the input is a business proposal or statement, elevate it into a polished, executive-ready message.
 4. Retain all core facts, names, numbers, and original intent without losing meaning.
-5. Provide 3 distinctly different stylistic options so the user has meaningful choice:
-   - Version 1: Executive & Strategic (direct, rationale-first, authoritative).
-   - Version 2: Collaborative & Constructive (diplomatic, discussion-oriented).
-   - Version 3: Crisp & Concise (brief, high-impact, to the point).
 
 User Original Draft:
 """
@@ -125,11 +136,7 @@ Target Tone: ${tone}
 Respond ONLY with a valid JSON object matching this schema (no markdown fences, no preamble):
 {
   "type": "message",
-  "versions": [
-    "First improved version",
-    "Second improved version",
-    "Third improved version"
-  ]
+  "version": "The single improved message version text"
 }`;
 
   let lastError: string | null = null;
@@ -156,9 +163,12 @@ Respond ONLY with a valid JSON object matching this schema (no markdown fences, 
   }
 
   // Fallback to local tone engine if external AI fails, times out, or hits rate limit
+  const fallbackVersions = getFallbackMessageVersions(input, tone);
+  const fallbackChoice = fallbackVersions[Math.min(versionNumber - 1, fallbackVersions.length - 1)] || fallbackVersions[0];
+
   return {
     type: "message",
-    versions: getFallbackMessageVersions(input, tone),
+    versions: [fallbackChoice],
     source: "fallback",
     aiError: lastError || undefined,
   };

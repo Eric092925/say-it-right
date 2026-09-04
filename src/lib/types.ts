@@ -60,6 +60,8 @@ export interface MessageRequest {
   mode: "message";
   input: string;
   tone: ToneOption;
+  versionNumber?: number;
+  previousVersions?: string[];
 }
 
 export interface MessageResult {

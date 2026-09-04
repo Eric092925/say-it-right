@@ -95,6 +95,9 @@ export default function HomePage() {
     setIsMessageLoading(true);
     setErrorMessage(null);
 
+    const targetVersionNumber = isRegen ? generationCount + 1 : 1;
+    const existingVersions = isRegen && messageResult ? messageResult.versions : [];
+
     try {
       const response = await fetch("/api/ai", {
         method: "POST",
@@ -103,31 +106,28 @@ export default function HomePage() {
           mode: "message",
           input: message.trim(),
           tone,
+          versionNumber: targetVersionNumber,
+          previousVersions: existingVersions,
         }),
       });
 
       const data: ApiResponse = await response.json();
 
       if (data.success && data.data.type === "message") {
+        const newVersionText = data.data.versions[0] || "";
         if (isRegen && messageResult) {
-          const existingVersions = messageResult.versions || [];
-          const currentNumericIndex = typeof selectedVersion === "number" ? selectedVersion : 0;
-          const nextIndex = (currentNumericIndex + 1) % Math.max(1, existingVersions.length);
-
-          const combined = Array.from(
-            new Set([...existingVersions, ...data.data.versions])
-          ).slice(0, 3);
-
+          const updatedVersions = [...existingVersions, newVersionText];
           setMessageResult({
-            type: "message",
-            versions: combined,
+            ...data.data,
+            versions: updatedVersions,
           });
-
-          const targetIndex = nextIndex < combined.length ? nextIndex : combined.length - 1;
-          setSelectedVersion(targetIndex);
-          setGenerationCount((prev) => Math.min(prev + 1, 3));
+          setSelectedVersion(updatedVersions.length - 1);
+          setGenerationCount(updatedVersions.length);
         } else {
-          setMessageResult(data.data);
+          setMessageResult({
+            ...data.data,
+            versions: [newVersionText],
+          });
           setSelectedVersion(0);
           setGenerationCount(1);
         }
@@ -144,17 +144,10 @@ export default function HomePage() {
     }
   };
 
-  // Handle Message Regeneration
+  // Handle Message Regeneration (generates next version on demand)
   const handleRegenerate = () => {
-    if (generationCount >= 3 || !currentMessage) return;
-
-    if (messageResult && messageResult.versions.length > generationCount) {
-      const nextIdx = generationCount;
-      setSelectedVersion(nextIdx);
-      setGenerationCount((prev) => Math.min(prev + 1, 3));
-    } else {
-      handleMessageSubmit(currentMessage, currentTone, true);
-    }
+    if (generationCount >= 3 || !currentMessage || isMessageLoading) return;
+    handleMessageSubmit(currentMessage, currentTone, true);
   };
 
   return (

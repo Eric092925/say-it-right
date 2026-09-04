@@ -67,10 +67,15 @@ export async function POST(req: NextRequest) {
           ? tone
           : "Professional";
 
+      const versionNum = typeof body.versionNumber === "number" ? body.versionNumber : 1;
+      const prevVersions = Array.isArray(body.previousVersions) ? body.previousVersions : undefined;
+
       const messageResult = await processMessageAI({
         mode: "message",
         input: cleanInput,
         tone: validTone,
+        versionNumber: versionNum,
+        previousVersions: prevVersions,
       });
 
       return NextResponse.json({
