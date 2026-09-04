@@ -204,20 +204,28 @@ async function callAIProvider(
       // Ignore discovery error and use base models
     }
 
-    const baseModels = [
+    // Prioritize flagship Gemini models first; Gemma is only a last resort
+    const priorityGemini = [
+      "gemini-2.0-flash",
       "gemini-1.5-flash",
       "gemini-1.5-flash-latest",
-      "gemini-2.0-flash",
-      "gemini-2.0-flash-exp",
       "gemini-1.5-pro",
       "gemini-pro",
     ];
 
+    const geminiDiscovered = discoveredModels.filter((m) => m.startsWith("gemini-"));
+    const otherDiscovered = discoveredModels.filter(
+      (m) => !m.startsWith("gemini-") && !m.startsWith("gemma-")
+    );
+    const gemmaModels = discoveredModels.filter((m) => m.startsWith("gemma-"));
+
     const modelsToTry = Array.from(
       new Set([
         ...(config.model ? [config.model] : []),
-        ...discoveredModels,
-        ...baseModels,
+        ...priorityGemini,
+        ...geminiDiscovered,
+        ...otherDiscovered,
+        ...gemmaModels,
       ])
     );
 
