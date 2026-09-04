@@ -50,7 +50,7 @@ export default function MessageResult({
       {/* Header: Title, Tone/Original Badge, and Version Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
             <span className="text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
               {isOriginal ? "Original Draft" : "Message Result"}
             </span>
@@ -59,9 +59,20 @@ export default function MessageResult({
                 <FileText className="w-3 h-3 text-slate-500" /> Original
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
-                {toneConfig.emoji} {toneConfig.label}
-              </span>
+              <>
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                  {toneConfig.emoji} {toneConfig.label}
+                </span>
+                {result.source === "ai" ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
+                    <Sparkles className="w-3 h-3 text-emerald-500" /> AI Powered ({result.model || "Gemini"})
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60">
+                    ⚡ Smart Engine
+                  </span>
+                )}
+              </>
             )}
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">

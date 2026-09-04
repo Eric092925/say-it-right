@@ -65,6 +65,9 @@ export interface MessageRequest {
 export interface MessageResult {
   type: "message";
   versions: string[];
+  source?: "ai" | "fallback";
+  model?: string;
+  aiError?: string;
 }
 
 export type ApiSuccessResponse =

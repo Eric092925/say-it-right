@@ -60,14 +60,22 @@ export function validateMessageResult(data: unknown): MessageResult | null {
 }
 
 export function cleanJsonString(str: string): string {
-  let cleaned = str.trim();
+  const trimmed = str.trim();
 
-  // Strip markdown code fences if present (```json ... ``` or ``` ...)
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  // Extract content inside ```json ... ``` or ``` ... ``` if present
+  const codeBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (codeBlockMatch) {
+    return codeBlockMatch[1].trim();
   }
 
-  return cleaned.trim();
+  // Extract substring from first { to last }
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1).trim();
+  }
+
+  return trimmed;
 }
 
 export function parseAndValidateAIResponse(rawResponseText: string, mode: "word" | "message"): WordResult | MessageResult | null {
