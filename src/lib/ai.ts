@@ -184,14 +184,12 @@ async function callAIProvider(
     url.includes("generativelanguage.googleapis.com") ||
     (!url && apiKey && (apiKey.startsWith("AIza") || apiKey.startsWith("AQ.") || !apiKey.startsWith("sk-")))
   ) {
-    // We only try the 2 proven active models: gemini-2.5-flash and gemini-flash-latest
-    const modelsToTry = Array.from(
-      new Set([
-        config.model || "gemini-2.5-flash",
-        "gemini-flash-latest",
-        "gemini-2.5-flash-lite",
-      ])
-    );
+    // Primary model is the proven gemini-flash-latest
+    const modelsToTry = [
+      "gemini-flash-latest",
+      config.model || "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+    ];
 
     let lastGeminiErr = "";
 
@@ -199,7 +197,7 @@ async function callAIProvider(
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000); // 4-second hard timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second generous timeout for deep generation
 
       try {
         const res = await fetch(endpoint, {
@@ -237,7 +235,7 @@ async function callAIProvider(
       } catch (err: any) {
         clearTimeout(timeoutId);
         if (err.name === "AbortError") {
-          lastGeminiErr = "Gemini request timed out (4s limit).";
+          lastGeminiErr = "Gemini request timed out (15s limit).";
         } else if (err.message?.includes("rate limit")) {
           throw err;
         } else {
