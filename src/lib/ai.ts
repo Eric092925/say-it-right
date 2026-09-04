@@ -86,9 +86,17 @@ export async function processMessageAI(request: MessageRequest): Promise<Message
     };
   }
 
-  const prompt = `You are an expert English writing assistant for "Say It Right".
-Task: Rewrite the following user message into 3 distinct, high-quality improved variations in a "${tone}" tone.
-Make sure the message sounds natural, grammatically correct, and preserves the original intent.
+  const prompt = `You are an elite English communication coach and writing assistant for "Say It Right".
+Your task is to rewrite the user's message into 3 DISTINCT, highly effective variations tailored to a "${tone}" tone.
+
+Rules:
+1. Ensure flawless English grammar, natural phrasing, and appropriate level of formality for the "${tone}" tone.
+2. Preserve the exact core meaning, facts, and intent of the original message.
+3. Make each of the 3 versions distinct in wording and sentence structure:
+   - Version 1: Direct, clean, and polished.
+   - Version 2: Nuanced and smooth.
+   - Version 3: Alternative natural phrasing.
+4. Do not include placeholders, brackets, or meta-comments.
 
 User Message:
 """
@@ -102,14 +110,14 @@ JSON Schema:
 {
   "type": "message",
   "versions": [
-    "Improved message version 1 (natural, clear, complete)",
-    "Improved message version 2 (slightly different phrasing)",
-    "Improved message version 3 (alternative option)"
+    "Improved message version 1",
+    "Improved message version 2",
+    "Improved message version 3"
   ]
 }`;
 
   try {
-    const rawAiText = await callAIProvider(prompt, config);
+    const rawAiText = await callAIProvider(prompt, config, 0.7);
     if (rawAiText) {
       const validated = parseAndValidateAIResponse(rawAiText, "message");
       if (
@@ -119,29 +127,35 @@ JSON Schema:
       ) {
         return validated;
       }
-      console.warn(
-        `[Say It Right AI] Response validation failed for message. Raw: ${rawAiText.slice(0, 100)}...`
-      );
     }
   } catch (error) {
-    console.error(`[Say It Right AI] External AI call failed for message:`, error);
+    console.error(
+      `[Say It Right AI] Error calling AI provider for message rewriting:`,
+      error
+    );
   }
 
-  // Fallback
+  // Fallback to local tone engine if external AI fails or is unreachable
   return {
     type: "message",
     versions: getFallbackMessageVersions(input, tone),
   };
 }
 
-async function callAIProvider(prompt: string, config: AIConfig): Promise<string | null> {
-  const apiKey = config.apiKey || "";
-  let url = config.apiUrl || "";
+async function callAIProvider(
+  prompt: string,
+  config: AIConfig,
+  temperature = 0.2
+): Promise<string | null> {
+  const { apiKey, apiUrl } = config;
+  if (!apiKey && !apiUrl) return null;
 
-  // 1. Google Gemini Endpoint Handling
+  const url = apiUrl ? apiUrl.toLowerCase() : "";
+
+  // 1. Google Gemini Endpoint Handling (Default when apiKey starts with AIza or contains googleapis)
   if (
     url.includes("generativelanguage.googleapis.com") ||
-    (!url && apiKey.startsWith("AIza"))
+    (!url && apiKey && (apiKey.startsWith("AIza") || !apiKey.startsWith("sk-")))
   ) {
     const model = config.model || "gemini-1.5-flash";
     const endpoint = url.includes("generateContent")
@@ -156,7 +170,7 @@ async function callAIProvider(prompt: string, config: AIConfig): Promise<string 
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.2,
+          temperature,
           responseMimeType: "application/json",
         },
       }),
@@ -193,7 +207,7 @@ async function callAIProvider(prompt: string, config: AIConfig): Promise<string 
           },
           { role: "user", content: prompt },
         ],
-        temperature: 0.2,
+        temperature,
         response_format: { type: "json_object" },
       }),
     });

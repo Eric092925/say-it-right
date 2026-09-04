@@ -535,44 +535,197 @@ function splitIntoSyllables(word: string): string[] {
 }
 
 export function getFallbackMessageVersions(input: string, tone: ToneOption): string[] {
-  const clean = input.trim().replace(/[.?!]+$/, "");
+  const text = input.trim();
+  const lower = text.toLowerCase();
+  const clean = text.replace(/[.?!]+$/, "");
+
+  // Detect intent
+  const isAbsence = /sick|ill|doctor|hospital|can't make it|cannot make it|won't be able|unable to attend|not able to come|out of office|take the day off/i.test(lower);
+  const isLate = /late|delay|stuck|traffic|held up|behind schedule/i.test(lower);
+  const isThanks = /thank|appreciate|grateful|cheers/i.test(lower);
+  const isApology = /sorry|apolog|my bad|my mistake|oversight/i.test(lower);
+  const isQuestionOrRequest = /^(can|could|would|please|do you|may|will|are you|is it)/i.test(lower) || /send|give|provide|share|update|review|check|let me know/i.test(lower);
+
+  if (isAbsence) {
+    switch (tone) {
+      case "Professional":
+        return [
+          `I am writing to let you know that I will be unable to attend today due to an unexpected personal matter. I apologize for any inconvenience caused and will follow up on any urgent items as soon as I return.`,
+          `Please be advised that I will be away today and unable to attend our scheduled activities. I will check in promptly upon my return to ensure all priorities remain on track.`,
+          `Due to unforeseen circumstances, I will not be able to be present today. Thank you very much for your understanding, and I will keep you updated regarding my availability.`,
+        ];
+      case "Friendly":
+        return [
+          `Hi everyone! Just wanted to let you know that I won't be able to make it in today as I'm feeling under the weather. I'll catch up on everything as soon as I'm back!`,
+          `Hey team! Unfortunately I have to miss today due to an unexpected appointment. Hope you all have a great day, and I'll see you soon!`,
+          `Morning! Something came up today so I won't be able to join. I'll touch base with you all as soon as I'm back on my feet!`,
+        ];
+      case "Polite":
+        return [
+          `Please accept my sincere apologies, but I will unfortunately be unable to attend today. Thank you so much for your understanding.`,
+          `I regret to inform you that I will be unable to make it today due to personal circumstances. Thank you kindly for your consideration.`,
+          `I am writing to respectfully notify you of my absence today. I greatly appreciate your understanding and support.`,
+        ];
+      case "Confident":
+        return [
+          `I will be out today and unable to attend. I will review all pending matters as soon as I return and follow up on any urgent actions.`,
+          `I am taking today off due to unforeseen circumstances. I have organized key priorities and will resume work as soon as I return.`,
+          `Please proceed without me today as I am unavailable. I will follow up on deliverables directly upon my return.`,
+        ];
+      case "Casual":
+        return [
+          `Hey everyone, won't be able to make it in today as I'm feeling a bit unwell. Catch up with you all soon!`,
+          `Quick heads up that I'm out for the day today. Will check in with you all a bit later!`,
+          `Can't make it today unfortunately — will catch up on everything once I'm back!`,
+        ];
+    }
+  }
+
+  if (isLate) {
+    switch (tone) {
+      case "Professional":
+        return [
+          `Please accept my apologies, as I am running slightly behind schedule. I anticipate arriving shortly and will join the discussion as soon as possible.`,
+          `I am writing to notify you that I have encountered an unexpected delay. I expect to arrive in approximately a few minutes.`,
+          `Due to unforeseen transit delays, my arrival will be slightly delayed today. Thank you for your patience, and I will be there shortly.`,
+        ];
+      case "Friendly":
+        return [
+          `Hi everyone! Just giving you a quick heads up that I'm running a few minutes late. See you all very shortly!`,
+          `Running a little behind today due to traffic, but on my way now! See you in a few minutes.`,
+          `Hey! Got held up for a moment, but heading over now. See you soon!`,
+        ];
+      case "Polite":
+        return [
+          `I apologize for the delay and any inconvenience caused. I am on my way and expect to arrive shortly. Thank you for your patience.`,
+          `Please forgive my tardiness today as I encountered an unexpected delay. I will be there as soon as possible.`,
+          `I sincerely apologize for running late. Thank you very much for your understanding and forbearance.`,
+        ];
+      case "Confident":
+        return [
+          `I have been held up briefly and will arrive shortly. Please feel free to start without me and I will step in upon arrival.`,
+          `Running about 10 minutes behind schedule. Let's proceed as planned and I will join immediately.`,
+          `I am on my way and will be there momentarily to continue our discussion.`,
+        ];
+      case "Casual":
+        return [
+          `Running a few minutes late today — should be there very shortly!`,
+          `Stuck in a bit of traffic, but almost there. See you in a sec!`,
+          `Running a little behind schedule, heading in right now!`,
+        ];
+    }
+  }
+
+  if (isThanks) {
+    switch (tone) {
+      case "Professional":
+        return [
+          `I wanted to express my sincere appreciation for your time and assistance with this matter. Your support has been greatly valued.`,
+          `Thank you very much for your collaboration and thorough support. I look forward to our continued work together.`,
+          `I truly appreciate your timely guidance and dedication on this project. Thank you for your help.`,
+        ];
+      case "Friendly":
+        return [
+          `Thanks so much for all your help with this! Really appreciate your time and support.`,
+          `Huge thank you for lending a hand today! Couldn't have done it without you.`,
+          `Just wanted to say a big thanks for helping out! Hope you have a wonderful rest of your week!`,
+        ];
+      case "Polite":
+        return [
+          `Thank you kindly for your gracious assistance. I am very grateful for your time and effort.`,
+          `I would like to extend my deepest gratitude for your thoughtful help with this matter.`,
+          `Please accept my sincere thanks for your guidance. I truly appreciate your kindness.`,
+        ];
+      case "Confident":
+        return [
+          `Thank you for the quick turnaround on this. Your input helped us achieve our goals on schedule.`,
+          `Appreciate the decisive support on this project. Great work moving this forward.`,
+          `Thank you for your partnership on this milestone. Let's keep the momentum going.`,
+        ];
+      case "Casual":
+        return [
+          `Thanks a ton for your help with this! Cheers!`,
+          `Really appreciate the hand today, thanks a bunch!`,
+          `Thanks for sorting that out so quickly! You're a legend.`,
+        ];
+    }
+  }
+
+  if (isApology) {
+    switch (tone) {
+      case "Professional":
+        return [
+          `Please accept my sincere apologies for the oversight. I am actively taking steps to rectify this and ensure everything is back on track.`,
+          `I apologize for any inconvenience caused by this error. We have reviewed the matter and implemented adjustments to prevent future occurrences.`,
+          `I regret the confusion surrounding this issue and appreciate your patience while we resolve it.`,
+        ];
+      case "Friendly":
+        return [
+          `So sorry about the mix-up earlier! I'm looking into it now and will have it sorted out for you right away.`,
+          `My apologies for the confusion today! Thanks for bearing with me while I get this fixed.`,
+          `Really sorry about that! I've made the updates now and everything should look much better.`,
+        ];
+      case "Polite":
+        return [
+          `I sincerely apologize for the inconvenience this has caused. Thank you very much for your grace and understanding.`,
+          `Please forgive my error in this regard. I am deeply grateful for your patience.`,
+          `I offer my heartfelt apologies for the miscommunication and will ensure it is promptly addressed.`,
+        ];
+      case "Confident":
+        return [
+          `I acknowledge the issue on this and have taken immediate corrective action to keep the project on track.`,
+          `Thank you for pointing that out. I have updated the details and we are ready to proceed.`,
+          `The oversight has been noted and corrected. Let's move forward with the next steps.`,
+        ];
+      case "Casual":
+        return [
+          `My bad on the mix-up earlier! Sorting it out right now.`,
+          `Sorry about that! All fixed and good to go now.`,
+          `Apologies for the confusion — appreciate your patience!`,
+        ];
+    }
+  }
+
+  // General request or inquiry
+  const stripped = clean.toLowerCase().replace(/^(can you please|could you please|can you|could you|please|i want you to|would you mind)\s+/i, "");
+  const capitalizedStripped = stripped.charAt(0).toUpperCase() + stripped.slice(1);
 
   switch (tone) {
     case "Professional":
       return [
-        `Could you please provide an update regarding ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")}?`,
-        `I would appreciate it if you could assist with ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")} at your earliest convenience.`,
-        `Kindly let me know when you have an opportunity to review ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")}.`,
+        `Could you please assist with ${stripped} at your earliest convenience? Thank you for your time and guidance.`,
+        `I would appreciate it if you could review ${stripped} when you have an opportunity.`,
+        `Kindly provide an update regarding ${stripped} so we may proceed with the next steps.`,
       ];
     case "Friendly":
       return [
-        `Hey there! Hope you're doing well. Whenever you get a chance, could you check on ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")}? Thanks!`,
-        `Hi! Just checking in — would you mind taking a look at ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")} when you have a moment?`,
-        `Hope you're having a great day! Could you help me out with ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")}? Appreciate it!`,
+        `Hey there! Hope you're doing well. Whenever you get a chance, could you help with ${stripped}? Thanks so much!`,
+        `Hi! Just checking in to see if you might have a moment to look into ${stripped}? Really appreciate it!`,
+        `Hope you're having a great week! Would love your help with ${stripped} whenever you're free.`,
       ];
     case "Polite":
       return [
-        `Would it be possible for you to kindly assist with ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")}? Thank you so much for your time.`,
-        `I would be very grateful if you could look into ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")} when you have a moment.`,
-        `Could you please be so kind as to help with ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")}?`,
+        `Would it be possible for you to kindly assist with ${stripped}? Thank you very much for your time and consideration.`,
+        `I would be deeply grateful if you could look into ${stripped} when your schedule permits.`,
+        `Could you please be so kind as to assist with ${stripped}? Thank you kindly.`,
       ];
     case "Confident":
       return [
-        `Please send over ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")} so we can move forward with the next steps.`,
-        `Let's finalize ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")} today to keep everything on schedule.`,
-        `I need ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")} to proceed. Please provide an update by end of day.`,
+        `Please finalize ${stripped} so we can move forward and meet our upcoming milestones.`,
+        `Let's coordinate on ${stripped} today to ensure our schedule remains on track.`,
+        `I need ${stripped} completed to proceed with our next phase. Please provide an update by end of day.`,
       ];
     case "Casual":
       return [
-        `Hey, could you send me ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")} when you get a sec? Cheers!`,
-        `Quick question — any chance you could share ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")}?`,
-        `Whenever you're free, toss ${clean.toLowerCase().replace(/^can you |^could you |^please /, "")} my way. Thanks!`,
+        `Hey, could you help me out with ${stripped} whenever you get a second? Cheers!`,
+        `Quick question — any chance you could take a look at ${stripped}? Thanks!`,
+        `Whenever you're free, let me know your thoughts on ${stripped}. Appreciate it!`,
       ];
     default:
       return [
-        `Could you please assist with ${clean}?`,
-        `I would appreciate your assistance regarding ${clean}.`,
-        `Kindly update me on ${clean} when convenient.`,
+        `Could you please review ${stripped}?`,
+        `I would appreciate your assistance with ${stripped}.`,
+        `Kindly let me know when you have an opportunity to look at ${stripped}.`,
       ];
   }
 }
