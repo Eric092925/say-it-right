@@ -34,7 +34,7 @@ export default function TestResult({
         <div className="flex items-center justify-center gap-3 mt-2 text-sm text-slate-500 dark:text-slate-400">
           <span>Level: <strong>{result.level}</strong></span>
           <span>•</span>
-          <span>Accent Reference: <strong>{result.accent}</strong></span>
+          <span>Accent Reference: <strong>{result.accent}</strong> ({result.gender || "Female"} Voice)</span>
         </div>
 
         {/* Overall Score */}

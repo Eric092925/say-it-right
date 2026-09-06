@@ -38,23 +38,84 @@ export function getAvailableVoices(): SpeechSynthesisVoice[] {
   return cachedVoices;
 }
 
+export type VoiceGender = "Female" | "Male";
+
+const FEMALE_VOICE_HINTS = [
+  "female",
+  "woman",
+  "girl",
+  "zira",
+  "susan",
+  "hazel",
+  "catherine",
+  "hayley",
+  "samantha",
+  "victoria",
+  "serena",
+  "fiona",
+  "karen",
+  "jenny",
+  "aria",
+  "stephanie",
+  "linda",
+  "heather",
+  "natasha",
+  "olivia",
+];
+
+const MALE_VOICE_HINTS = [
+  "male",
+  "man",
+  "boy",
+  "david",
+  "george",
+  "james",
+  "mark",
+  "daniel",
+  "oliver",
+  "russell",
+  "lee",
+  "alex",
+  "tom",
+  "guy",
+  "brian",
+  "richard",
+  "ryan",
+];
+
+export function isVoiceGenderMatch(
+  voice: SpeechSynthesisVoice,
+  gender: VoiceGender
+): boolean {
+  const name = voice.name.toLowerCase();
+  const targetHints = gender === "Female" ? FEMALE_VOICE_HINTS : MALE_VOICE_HINTS;
+  const oppositeHints = gender === "Female" ? MALE_VOICE_HINTS : FEMALE_VOICE_HINTS;
+
+  if (oppositeHints.some((h) => name.includes(h))) {
+    return false;
+  }
+
+  return targetHints.some((h) => name.includes(h));
+}
+
 /**
- * Find the best matching voice for a requested accent option
+ * Find the best matching voice for a requested accent and gender option
  */
-export function findBestVoiceForAccent(accent: AccentOption): SpeechSynthesisVoice | null {
+export function findBestVoiceForAccent(
+  accent: AccentOption,
+  gender: VoiceGender = "Female"
+): { voice: SpeechSynthesisVoice | null; isExplicitGenderMatch: boolean } {
   const voices = getAvailableVoices();
-  if (!voices || voices.length === 0) return null;
+  if (!voices || voices.length === 0) return { voice: null, isExplicitGenderMatch: false };
 
   const accentConfig = ACCENT_OPTIONS.find((a) => a.id === accent) || ACCENT_OPTIONS[0];
 
-  // 1. Exact locale match (e.g. "en-AU", "en-GB", "en-US", "en-CA", "en-NZ")
-  let match = voices.find(
+  // Candidate voices matching exact locale or subtags
+  const localeMatches = voices.filter(
     (v) => v.lang.replace(/_/g, "-").toLowerCase() === accentConfig.locale.toLowerCase()
   );
-  if (match) return match;
 
-  // 2. Subtag / region match in voice name or lang
-  match = voices.find((v) => {
+  const subtagMatches = voices.filter((v) => {
     const langLower = v.lang.toLowerCase();
     const nameLower = v.name.toLowerCase();
     return accentConfig.subtags.some(
@@ -63,25 +124,49 @@ export function findBestVoiceForAccent(accent: AccentOption): SpeechSynthesisVoi
         nameLower.includes(sub.toLowerCase())
     );
   });
-  if (match) return match;
 
-  // 3. Any English voice
-  match = voices.find((v) => v.lang.toLowerCase().startsWith("en"));
-  if (match) return match;
+  const candidateVoices = [...new Set([...localeMatches, ...subtagMatches])];
+
+  // 1. Explicit gender match in accent-matched voices
+  const genderMatchedInAccent = candidateVoices.find((v) => isVoiceGenderMatch(v, gender));
+  if (genderMatchedInAccent) {
+    return { voice: genderMatchedInAccent, isExplicitGenderMatch: true };
+  }
+
+  // 2. Candidate voice that does not explicitly match the opposite gender
+  const neutralAccentVoice = candidateVoices.find(
+    (v) => !isVoiceGenderMatch(v, gender === "Female" ? "Male" : "Female")
+  );
+  if (neutralAccentVoice) {
+    return { voice: neutralAccentVoice, isExplicitGenderMatch: false };
+  }
+
+  if (candidateVoices.length > 0) {
+    return { voice: candidateVoices[0], isExplicitGenderMatch: false };
+  }
+
+  // 3. Any English voice matching gender
+  const englishVoices = voices.filter((v) => v.lang.toLowerCase().startsWith("en"));
+  const genderMatchedEnglish = englishVoices.find((v) => isVoiceGenderMatch(v, gender));
+  if (genderMatchedEnglish) {
+    return { voice: genderMatchedEnglish, isExplicitGenderMatch: true };
+  }
 
   // 4. Default voice
-  return voices.find((v) => v.default) || voices[0] || null;
+  const fallback = voices.find((v) => v.default) || voices[0] || null;
+  return { voice: fallback, isExplicitGenderMatch: false };
 }
 
 /**
- * Speak the specified text in the requested accent
+ * Speak the specified text in the requested accent and voice gender
  */
 export function speakText(
   text: string,
   accent: AccentOption = "Australian",
   onStart?: () => void,
   onEnd?: () => void,
-  onError?: (errorMessage: string) => void
+  onError?: (errorMessage: string) => void,
+  gender: VoiceGender = "Female"
 ): () => void {
   if (!isSpeechSupported()) {
     onError?.("Speech synthesis is not supported in this browser.");
@@ -108,8 +193,8 @@ export function speakText(
     const utterance = new SpeechSynthesisUtterance(cleanText);
     activeUtterance = utterance;
 
-    // Resolve voice
-    const voice = findBestVoiceForAccent(accent);
+    // Resolve voice and gender tuning
+    const { voice, isExplicitGenderMatch } = findBestVoiceForAccent(accent, gender);
     const accentConfig = ACCENT_OPTIONS.find((a) => a.id === accent);
 
     if (voice) {
@@ -120,7 +205,13 @@ export function speakText(
     }
 
     utterance.rate = 0.95;
-    utterance.pitch = 1.0;
+
+    // Pitch calibration based on gender
+    if (gender === "Female") {
+      utterance.pitch = isExplicitGenderMatch ? 1.02 : 1.15;
+    } else {
+      utterance.pitch = isExplicitGenderMatch ? 0.96 : 0.85;
+    }
 
     let hasStarted = false;
 

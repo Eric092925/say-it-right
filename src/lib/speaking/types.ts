@@ -2,6 +2,10 @@ import { AccentOption } from "../types";
 
 export type SpeakingDifficulty = "Beginner" | "Intermediate" | "Advanced";
 
+export type VoiceGender = "Female" | "Male";
+
+export const VOICE_GENDERS: VoiceGender[] = ["Female", "Male"];
+
 export const SPEAKING_LEVELS: SpeakingDifficulty[] = [
   "Beginner",
   "Intermediate",
@@ -90,6 +94,7 @@ export interface SpeakingTestResult {
   summary: string;
   level: SpeakingDifficulty;
   accent: AccentOption;
+  gender?: VoiceGender;
   questions: SpeakingTestQuestion[];
   completedAt: string;
 }

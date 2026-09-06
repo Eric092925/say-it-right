@@ -5,6 +5,7 @@ import {
   SpeakingDifficulty,
   SpeakingTestQuestion,
   SpeakingTestResult,
+  VoiceGender,
   SPEAKING_LEVELS,
 } from "@/lib/speaking/types";
 import { AccentOption, ACCENT_OPTIONS } from "@/lib/types";
@@ -32,6 +33,7 @@ export default function SpeakingTest({ onSwitchToPractice }: SpeakingTestProps) 
   // Setup State
   const [level, setLevel] = useState<SpeakingDifficulty>("Intermediate");
   const [accent, setAccent] = useState<AccentOption>("Australian");
+  const [gender, setGender] = useState<VoiceGender>("Female");
   const [isTestActive, setIsTestActive] = useState(false);
 
   // Active Test State
@@ -88,7 +90,8 @@ export default function SpeakingTest({ onSwitchToPractice }: SpeakingTestProps) 
       accent,
       () => setIsAudioPlaying(true),
       () => setIsAudioPlaying(false),
-      () => setIsAudioPlaying(false)
+      () => setIsAudioPlaying(false),
+      gender
     );
   };
 
@@ -137,6 +140,7 @@ export default function SpeakingTest({ onSwitchToPractice }: SpeakingTestProps) 
           summary: aggregated.summary,
           level,
           accent,
+          gender,
           questions: updatedQuestions,
           completedAt: new Date().toISOString(),
         });
@@ -199,18 +203,18 @@ export default function SpeakingTest({ onSwitchToPractice }: SpeakingTestProps) 
         </div>
 
         {/* Configuration Selectors */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
               Difficulty Level
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {SPEAKING_LEVELS.map((lvl) => (
                 <button
                   key={lvl}
                   type="button"
                   onClick={() => setLevel(lvl)}
-                  className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold border transition-all ${
+                  className={`py-2.5 px-1.5 rounded-xl text-xs font-semibold border transition-all ${
                     level === lvl
                       ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
                       : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -226,13 +230,13 @@ export default function SpeakingTest({ onSwitchToPractice }: SpeakingTestProps) 
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
               Reference Accent
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {ACCENT_OPTIONS.map((acc) => (
                 <button
                   key={acc.id}
                   type="button"
                   onClick={() => setAccent(acc.id)}
-                  className={`py-2.5 px-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all truncate ${
+                  className={`py-2.5 px-1 rounded-xl text-xs font-semibold border transition-all truncate ${
                     accent === acc.id
                       ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
                       : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -241,6 +245,36 @@ export default function SpeakingTest({ onSwitchToPractice }: SpeakingTestProps) 
                   <span>{acc.flag} {acc.label}</span>
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
+              Reference Voice
+            </label>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => setGender("Female")}
+                className={`py-2.5 px-2 rounded-xl text-xs font-semibold border transition-all ${
+                  gender === "Female"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                    : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                }`}
+              >
+                👩 Female
+              </button>
+              <button
+                type="button"
+                onClick={() => setGender("Male")}
+                className={`py-2.5 px-2 rounded-xl text-xs font-semibold border transition-all ${
+                  gender === "Male"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                    : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                }`}
+              >
+                👨 Male
+              </button>
             </div>
           </div>
         </div>

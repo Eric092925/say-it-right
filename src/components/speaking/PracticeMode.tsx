@@ -6,6 +6,7 @@ import {
   SpeakingTopic,
   SpeakingExercise,
   SpeakingScoreResult,
+  VoiceGender,
   SPEAKING_LEVELS,
   SPEAKING_TOPICS,
 } from "@/lib/speaking/types";
@@ -33,6 +34,7 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
   // Setup State
   const [level, setLevel] = useState<SpeakingDifficulty>("Intermediate");
   const [accent, setAccent] = useState<AccentOption>("Australian");
+  const [gender, setGender] = useState<VoiceGender>("Female");
   const [topic, setTopic] = useState<SpeakingTopic>("All Topics");
   const [exerciseCount, setExerciseCount] = useState<number>(5);
 
@@ -79,7 +81,8 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
       accent,
       () => setIsAudioPlaying(true),
       () => setIsAudioPlaying(false),
-      () => setIsAudioPlaying(false)
+      () => setIsAudioPlaying(false),
+      gender
     );
   };
 
@@ -214,7 +217,38 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
             </div>
           </div>
 
-          {/* 3. Topic Selector */}
+          {/* 3. Voice Gender Selector */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
+              Reference Voice Gender
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setGender("Female")}
+                className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold border transition-all ${
+                  gender === "Female"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                    : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                }`}
+              >
+                👩 Female Voice
+              </button>
+              <button
+                type="button"
+                onClick={() => setGender("Male")}
+                className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold border transition-all ${
+                  gender === "Male"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                    : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                }`}
+              >
+                👨 Male Voice
+              </button>
+            </div>
+          </div>
+
+          {/* 4. Topic Selector */}
           <div>
             <label htmlFor="topic-select" className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
               Topic
@@ -236,7 +270,7 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
             </div>
           </div>
 
-          {/* 4. Number of Exercises */}
+          {/* 5. Number of Exercises */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
               Number of Exercises
@@ -263,7 +297,7 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
         {/* Start Button */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            Selected: <strong>{level}</strong> • <strong>{accent}</strong> • <strong>{exerciseCount}</strong> items
+            Selected: <strong>{level}</strong> • <strong>{accent}</strong> ({gender}) • <strong>{exerciseCount}</strong> items
           </div>
           <button
             type="button"
@@ -418,18 +452,56 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
 
         {/* Action Controls: Listen + Speak */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={() => handleListenReference()}
-            className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm border transition-all ${
-              isAudioPlaying
-                ? "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700 animate-pulse"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 shadow-sm"
-            }`}
-          >
-            <Volume2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <span>{isAudioPlaying ? "Stop Listening" : "Listen to Reference"}</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => handleListenReference()}
+              className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm border transition-all ${
+                isAudioPlaying
+                  ? "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700 animate-pulse"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 shadow-sm"
+              }`}
+            >
+              <Volume2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>{isAudioPlaying ? "Stop Listening" : "Listen to Reference"}</span>
+            </button>
+
+            {/* Quick Gender Toggle during practice */}
+            <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => {
+                  stopSpeech();
+                  setIsAudioPlaying(false);
+                  setGender("Female");
+                }}
+                className={`px-2.5 py-1.5 rounded-lg transition-all ${
+                  gender === "Female"
+                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                    : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+                }`}
+                title="Use female voice"
+              >
+                👩 Female
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  stopSpeech();
+                  setIsAudioPlaying(false);
+                  setGender("Male");
+                }}
+                className={`px-2.5 py-1.5 rounded-lg transition-all ${
+                  gender === "Male"
+                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                    : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+                }`}
+                title="Use male voice"
+              >
+                👨 Male
+              </button>
+            </div>
+          </div>
 
           {/* Microphone Voice Recorder */}
           <div className="w-full sm:w-auto">
