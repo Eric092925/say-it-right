@@ -6,6 +6,7 @@ import WordInput from "@/components/WordInput";
 import WordResult from "@/components/WordResult";
 import MessageInput from "@/components/MessageInput";
 import MessageResult from "@/components/MessageResult";
+import SpeakingHub from "@/components/speaking/SpeakingHub";
 import { VersionKey } from "@/components/VersionSelector";
 import {
   AppMode,
@@ -227,6 +228,13 @@ export default function HomePage() {
               generationCount={generationCount}
             />
           )}
+        </div>
+      )}
+
+      {/* Mode 3: Speaking Mode */}
+      {mode === "speaking" && (
+        <div className="w-full">
+          <SpeakingHub />
         </div>
       )}
     </div>

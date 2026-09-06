@@ -39,7 +39,7 @@ export const TONE_OPTIONS: ToneInfo[] = [
   { id: "Casual", label: "Casual", emoji: "☕", description: "Relaxed, natural, and conversational" },
 ];
 
-export type AppMode = "word" | "message";
+export type AppMode = "word" | "message" | "speaking";
 
 export interface WordRequest {
   mode: "word";
