@@ -23,6 +23,7 @@ import {
   RotateCcw,
   CheckCircle2,
   Lock,
+  X,
 } from "lucide-react";
 
 interface SpeakingTestProps {
@@ -343,9 +344,11 @@ export default function SpeakingTest({ onSwitchToPractice }: SpeakingTestProps) 
             <button
               type="button"
               onClick={handleResetToSetup}
-              className="text-xs font-semibold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:underline"
+              aria-label="Quit test and return to setup"
+              className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/50 text-slate-700 hover:text-rose-600 dark:text-slate-200 dark:hover:text-rose-400 border border-slate-200 hover:border-rose-300 dark:border-slate-700 dark:hover:border-rose-800/80 shadow-sm transition-all active:scale-95 group"
             >
-              Quit Test
+              <X className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-500 transition-colors" />
+              <span>Quit Test</span>
             </button>
           </div>
 

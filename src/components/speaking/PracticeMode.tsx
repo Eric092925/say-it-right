@@ -24,6 +24,7 @@ import {
   Sparkles,
   CheckCircle2,
   ChevronDown,
+  X,
 } from "lucide-react";
 
 interface PracticeModeProps {
@@ -358,10 +359,10 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
     <div className="w-full space-y-6">
       <div className="w-full bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200/90 dark:border-slate-800 shadow-lifted animate-slide-up">
         {/* Progress & Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
+        <div className="flex items-start justify-between gap-3 pb-5 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex-1 min-w-0 pr-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5">
+              <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
                 Exercise {currentIndex + 1} of {exercises.length}
               </span>
               <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
@@ -381,12 +382,15 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
             )}
           </div>
 
+          {/* End Practice Button - High Visibility & Top-Right Placement on Mobile & Desktop */}
           <button
             type="button"
             onClick={handleResetSession}
-            className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:underline self-start sm:self-auto"
+            aria-label="End current practice session"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/50 text-slate-700 hover:text-rose-600 dark:text-slate-200 dark:hover:text-rose-400 border border-slate-200 hover:border-rose-300 dark:border-slate-700 dark:hover:border-rose-800/80 shadow-sm transition-all active:scale-95 group"
           >
-            End Practice
+            <X className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-500 transition-colors" />
+            <span>End Practice</span>
           </button>
         </div>
 
