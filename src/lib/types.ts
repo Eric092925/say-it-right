@@ -12,9 +12,9 @@ export interface AccentInfo {
 }
 
 export const ACCENT_OPTIONS: AccentInfo[] = [
-  { id: "Australian", label: "Australian", flag: "🇦🇺", locale: "en-AU", subtags: ["en-AU", "AU", "Australian"] },
-  { id: "British", label: "British", flag: "🇬🇧", locale: "en-GB", subtags: ["en-GB", "GB", "British", "UK", "en-UK"] },
-  { id: "American", label: "American", flag: "🇺🇸", locale: "en-US", subtags: ["en-US", "US", "American", "en"] },
+  { id: "Australian", label: "Australian", flag: "🇦🇺", locale: "en-AU", subtags: ["en-AU", "Australian", "Australia"] },
+  { id: "British", label: "British", flag: "🇬🇧", locale: "en-GB", subtags: ["en-GB", "British", "UK", "United Kingdom", "England"] },
+  { id: "American", label: "American", flag: "🇺🇸", locale: "en-US", subtags: ["en-US", "American", "United States", "US"] },
 ];
 
 export type ToneOption =
