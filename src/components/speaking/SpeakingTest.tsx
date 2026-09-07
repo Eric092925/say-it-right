@@ -204,7 +204,7 @@ export default function SpeakingTest({ onSwitchToPractice }: SpeakingTestProps) 
         </div>
 
         {/* Configuration Selectors */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
               Difficulty Level
@@ -246,36 +246,6 @@ export default function SpeakingTest({ onSwitchToPractice }: SpeakingTestProps) 
                   <span>{acc.flag} {acc.label}</span>
                 </button>
               ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
-              Reference Voice
-            </label>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                onClick={() => setGender("Female")}
-                className={`py-2.5 px-2 rounded-xl text-xs font-semibold border transition-all ${
-                  gender === "Female"
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                    : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                }`}
-              >
-                👩 Female
-              </button>
-              <button
-                type="button"
-                onClick={() => setGender("Male")}
-                className={`py-2.5 px-2 rounded-xl text-xs font-semibold border transition-all ${
-                  gender === "Male"
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                    : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                }`}
-              >
-                👨 Male
-              </button>
             </div>
           </div>
         </div>
@@ -424,35 +394,71 @@ export default function SpeakingTest({ onSwitchToPractice }: SpeakingTestProps) 
 
         {/* Action Controls: Strictly max 2 listens, 1 recording attempt */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          {/* Strict Listen Button (Blueprint Section 15) */}
-          <button
-            type="button"
-            onClick={() => handleListen()}
-            disabled={isListeningLocked || isAudioPlaying}
-            className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm border transition-all ${
-              isListeningLocked
-                ? "bg-slate-100 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 border-dashed border-slate-200 dark:border-slate-800 cursor-not-allowed"
-                : isAudioPlaying
-                ? "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700 animate-pulse"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 shadow-sm"
-            }`}
-          >
-            {isListeningLocked ? (
-              <>
-                <Lock className="w-4 h-4" />
-                <span>Listen limit reached (2/2)</span>
-              </>
-            ) : (
-              <>
-                <Volume2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>
-                  {isAudioPlaying
-                    ? "Stop Listening"
-                    : `Listen (${currentQuestion.listenCount + 1}/2)`}
-                </span>
-              </>
-            )}
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+            {/* Strict Listen Button (Blueprint Section 15) */}
+            <button
+              type="button"
+              onClick={() => handleListen()}
+              disabled={isListeningLocked || isAudioPlaying}
+              className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm border transition-all ${
+                isListeningLocked
+                  ? "bg-slate-100 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 border-dashed border-slate-200 dark:border-slate-800 cursor-not-allowed"
+                  : isAudioPlaying
+                  ? "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700 animate-pulse"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 shadow-sm"
+              }`}
+            >
+              {isListeningLocked ? (
+                <>
+                  <Lock className="w-4 h-4" />
+                  <span>Listen limit reached (2/2)</span>
+                </>
+              ) : (
+                <>
+                  <Volume2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>
+                    {isAudioPlaying
+                      ? "Stop Listening"
+                      : `Listen (${currentQuestion.listenCount + 1}/2)`}
+                  </span>
+                </>
+              )}
+            </button>
+
+            {/* Quick Gender Toggle during test */}
+            <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => {
+                  stopSpeech();
+                  setIsAudioPlaying(false);
+                  setGender("Female");
+                }}
+                className={`px-2.5 py-1.5 rounded-lg transition-all ${
+                  gender === "Female"
+                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                👩 Female
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  stopSpeech();
+                  setIsAudioPlaying(false);
+                  setGender("Male");
+                }}
+                className={`px-2.5 py-1.5 rounded-lg transition-all ${
+                  gender === "Male"
+                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                👨 Male
+              </button>
+            </div>
+          </div>
 
           {/* Voice Recorder */}
           <div className="w-full sm:w-auto">

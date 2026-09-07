@@ -37,7 +37,7 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
   const [accent, setAccent] = useState<AccentOption>("Australian");
   const [gender, setGender] = useState<VoiceGender>("Female");
   const [topic, setTopic] = useState<SpeakingTopic>("All Topics");
-  const [exerciseCount, setExerciseCount] = useState<number>(5);
+  const EXERCISES_PER_SESSION = 5;
 
   // Active Session State
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -53,9 +53,9 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
 
   const currentExercise = exercises[currentIndex];
 
-  // Start Practice Session
+  // Start Practice Session (Limited to exactly 5 exercises per option)
   const handleStartPractice = () => {
-    const list = getPracticeExercises(level, topic, exerciseCount);
+    const list = getPracticeExercises(level, topic, EXERCISES_PER_SESSION);
     if (list.length === 0) return;
 
     setExercises(list);
@@ -171,7 +171,7 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+        <div className="space-y-6 mb-8">
           {/* 1. Level Selector */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
@@ -218,41 +218,10 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
             </div>
           </div>
 
-          {/* 3. Voice Gender Selector */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
-              Reference Voice Gender
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setGender("Female")}
-                className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold border transition-all ${
-                  gender === "Female"
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                    : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                }`}
-              >
-                👩 Female Voice
-              </button>
-              <button
-                type="button"
-                onClick={() => setGender("Male")}
-                className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold border transition-all ${
-                  gender === "Male"
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                    : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                }`}
-              >
-                👨 Male Voice
-              </button>
-            </div>
-          </div>
-
-          {/* 4. Topic Selector */}
+          {/* 3. Topic Selector */}
           <div>
             <label htmlFor="topic-select" className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
-              Topic
+              Practice Topic
             </label>
             <div className="relative">
               <select
@@ -270,35 +239,12 @@ export default function PracticeMode({ onSwitchToTest }: PracticeModeProps) {
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
           </div>
-
-          {/* 5. Number of Exercises */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
-              Number of Exercises
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[1, 5, 10].map((num) => (
-                <button
-                  key={num}
-                  type="button"
-                  onClick={() => setExerciseCount(num)}
-                  className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold border transition-all ${
-                    exerciseCount === num
-                      ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                      : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                  }`}
-                >
-                  {num} {num === 1 ? "Exercise" : "Exercises"}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Start Button */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            Selected: <strong>{level}</strong> • <strong>{accent}</strong> ({gender}) • <strong>{exerciseCount}</strong> items
+            Selected: <strong>{level}</strong> • <strong>{accent}</strong> • <strong>5</strong> exercises
           </div>
           <button
             type="button"
